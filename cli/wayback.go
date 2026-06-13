@@ -90,14 +90,17 @@ Examples:
 			}
 			app.Out.SetURLField("url")
 			n, err := ia.CDX(c.Context(), app.HTTP, q, func(r ia.CDXRecord) error {
+				// Value carries every CDX column (urlkey, robotflags, redirect,
+				// and any others the server returned) plus a ready replay URL, so
+				// json/jsonl/template lose nothing; Cols is the curated table view.
+				val := r.Fields()
+				val["url"] = r.Original
+				val["status"] = r.StatusCode
+				val["replay"] = ia.ReplayURL(r.Timestamp, r.Original, false)
 				return app.Out.Emit(Row{
-					Cols: []string{"timestamp", "url", "mimetype", "status", "digest", "length"},
-					Vals: []string{r.Timestamp, r.Original, r.MimeType, r.StatusCode, r.Digest, r.Length},
-					Value: map[string]any{
-						"timestamp": r.Timestamp, "url": r.Original, "mimetype": r.MimeType,
-						"status": r.StatusCode, "digest": r.Digest, "length": r.Length,
-						"replay": ia.ReplayURL(r.Timestamp, r.Original, false),
-					},
+					Cols:  []string{"timestamp", "url", "mimetype", "status", "digest", "length"},
+					Vals:  []string{r.Timestamp, r.Original, r.MimeType, r.StatusCode, r.Digest, r.Length},
+					Value: val,
 				})
 			})
 			if err != nil {
@@ -223,7 +226,7 @@ Examples:
 				if wait && job.JobID != "" {
 					return app.waitSPN(c.Context(), job.JobID)
 				}
-				return app.Out.Emit(Row{Cols: []string{"job_id", "status"}, Vals: []string{job.JobID, job.Status}, Value: job})
+				return app.Out.Emit(Row{Cols: []string{"job_id", "status"}, Vals: []string{job.JobID, job.Status}, Value: job.Fields()})
 			}
 			url, err := ia.SaveAnonymous(c.Context(), app.HTTP, target)
 			if err != nil {
@@ -249,7 +252,7 @@ func (app *App) waitSPN(ctx context.Context, jobID string) error {
 		switch job.Status {
 		case "success":
 			app.progressf("done: %s", ia.ReplayURL(job.Timestamp, job.URL, false))
-			return app.Out.Emit(Row{Cols: []string{"job_id", "status", "url"}, Vals: []string{jobID, job.Status, job.URL}, Value: job})
+			return app.Out.Emit(Row{Cols: []string{"job_id", "status", "url"}, Vals: []string{jobID, job.Status, job.URL}, Value: job.Fields()})
 		case "error":
 			return mapErr(&statusError{job.Message})
 		}

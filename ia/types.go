@@ -161,7 +161,10 @@ func (d SearchDoc) TemplateValue() any {
 	return out
 }
 
-// CDXRecord is one Wayback capture from the CDX server.
+// CDXRecord is one Wayback capture from the CDX server. The typed fields cover
+// the seven default columns; All holds every column the server returned, keyed
+// by its header name, so extra columns (robotflags, redirect, offset, filename,
+// ...) survive into json/jsonl/template output untouched.
 type CDXRecord struct {
 	URLKey     string `json:"urlkey"`
 	Timestamp  string `json:"timestamp"`
@@ -170,6 +173,18 @@ type CDXRecord struct {
 	StatusCode string `json:"statuscode"`
 	Digest     string `json:"digest"`
 	Length     string `json:"length"`
+
+	All map[string]string `json:"-"`
+}
+
+// Fields returns every column the CDX server reported for this capture, so no
+// column is dropped regardless of which ones the query requested.
+func (r CDXRecord) Fields() map[string]any {
+	out := make(map[string]any, len(r.All))
+	for k, v := range r.All {
+		out[k] = v
+	}
+	return out
 }
 
 // Snapshot is the closest capture from the Availability API.
