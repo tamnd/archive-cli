@@ -1,0 +1,18 @@
+/dist/
+/bin/
+*.out
+*.test
+*.part
+.DS_Store
+
+# Local credentials must never be committed.
+credentials
+
+# Built docs site (tago output) and its cache
+/docs/public/
+/docs/public-pages/
+/docs/public-cf/
+**/.tago-cache.db
+
+# Local wrangler (Cloudflare) cache
+/.wrangler/
