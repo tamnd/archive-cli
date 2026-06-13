@@ -25,13 +25,17 @@ const (
 
 	// Wayback Machine.
 	WaybackAvailURL = "https://archive.org/wayback/available"
-	WaybackCDXURL   = "http://web.archive.org/cdx/search/cdx"
 	WaybackReplay   = "https://web.archive.org/web/"
 	WaybackSaveURL  = "https://web.archive.org/save/"
 
 	// UserAgent identifies the client politely to the Archive's edge.
 	UserAgent = "archive-cli/1.0 (+https://github.com/tamnd/archive-cli)"
 )
+
+// WaybackCDXURL is the CDX server endpoint. It is a var (not a const) so tests
+// can point it at a local server; the CDX host is heavily rate-limited per IP,
+// which makes live coverage unreliable.
+var WaybackCDXURL = "http://web.archive.org/cdx/search/cdx"
 
 // Defaults for the client and downloader.
 const (

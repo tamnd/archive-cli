@@ -172,6 +172,52 @@ func TestFileInfoPreservesAllFields(t *testing.T) {
 	}
 }
 
+func TestCDXRecordPreservesAllColumns(t *testing.T) {
+	// A CDX query can return columns beyond the default seven (here robotflags
+	// and redirect); Fields must surface every one.
+	r := CDXRecord{
+		Timestamp:  "20100101000000",
+		Original:   "http://example.com/",
+		StatusCode: "200",
+		All: map[string]string{
+			"urlkey":     "com,example)/",
+			"timestamp":  "20100101000000",
+			"original":   "http://example.com/",
+			"mimetype":   "text/html",
+			"statuscode": "200",
+			"digest":     "ABC",
+			"length":     "1234",
+			"robotflags": "-",
+			"redirect":   "-",
+		},
+	}
+	got := r.Fields()
+	for _, k := range []string{"urlkey", "robotflags", "redirect", "digest", "length"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("Fields() dropped CDX column %q", k)
+		}
+	}
+}
+
+func TestSPNJobPreservesAllFields(t *testing.T) {
+	raw := `{"job_id":"spn2-abc","status":"success","timestamp":"20240101000000",
+		"original_url":"https://example.com/","duration_sec":12.5,
+		"resources":["https://example.com/a.css"],"http_status":200,"counters":{"outlinks":3}}`
+	var j SPNJob
+	if err := json.Unmarshal([]byte(raw), &j); err != nil {
+		t.Fatal(err)
+	}
+	if j.JobID != "spn2-abc" || j.Status != "success" {
+		t.Errorf("typed fields wrong: %+v", j)
+	}
+	got := j.Fields()
+	for _, k := range []string{"original_url", "duration_sec", "resources", "http_status", "counters"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("Fields() dropped SPN2 field %q", k)
+		}
+	}
+}
+
 func TestExtractText(t *testing.T) {
 	html := []byte(`<html><head><title>T</title><style>x{}</style></head><body><p>Hello</p><script>1</script><p>World</p></body></html>`)
 	got := ExtractText(html)

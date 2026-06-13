@@ -29,6 +29,7 @@ Examples:
 					Value: map[string]any{
 						"identifier": id, "all_time": v.AllTime,
 						"last_30day": v.Last30, "last_7day": v.Last7,
+						"have_data": v.HaveData,
 					},
 				}); err != nil {
 					return err

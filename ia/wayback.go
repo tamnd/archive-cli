@@ -112,6 +112,14 @@ func CDX(ctx context.Context, h *HTTPClient, q CDXQuery, fn func(CDXRecord) erro
 	}
 	n := 0
 	for _, row := range rows[1:] {
+		// Capture every column under its header name so nothing the server
+		// returned is lost, then fill the typed convenience fields from it.
+		all := make(map[string]string, len(header))
+		for i, c := range header {
+			if i < len(row) {
+				all[c] = row[i]
+			}
+		}
 		rec := CDXRecord{
 			URLKey:     get(row, "urlkey"),
 			Timestamp:  get(row, "timestamp"),
@@ -120,6 +128,7 @@ func CDX(ctx context.Context, h *HTTPClient, q CDXQuery, fn func(CDXRecord) erro
 			StatusCode: get(row, "statuscode"),
 			Digest:     get(row, "digest"),
 			Length:     get(row, "length"),
+			All:        all,
 		}
 		if err := fn(rec); err != nil {
 			return n, err
@@ -142,13 +151,39 @@ func ReplayURL(timestamp, target string, raw bool) string {
 	return WaybackReplay + timestamp + mod + target
 }
 
-// SPNJob is the result of a Save Page Now request.
+// SPNJob is the result of a Save Page Now request. The SPN2 status reply carries
+// more than the typed fields (resources, outlinks, counters, original_url,
+// duration_sec, http_status, ...); the full record is kept in Raw so none of it
+// is dropped in json/jsonl/template output.
 type SPNJob struct {
 	JobID     string `json:"job_id"`
 	URL       string `json:"url"`
 	Timestamp string `json:"timestamp"`
 	Status    string `json:"status"`
 	Message   string `json:"message"`
+
+	Raw json.RawMessage `json:"-"`
+}
+
+// UnmarshalJSON fills the typed fields and retains the complete raw record.
+func (j *SPNJob) UnmarshalJSON(b []byte) error {
+	type alias SPNJob // sheds UnmarshalJSON to avoid recursion
+	var a alias
+	if err := json.Unmarshal(b, &a); err != nil {
+		return err
+	}
+	*j = SPNJob(a)
+	j.Raw = append(j.Raw[:0], b...)
+	return nil
+}
+
+// Fields decodes the complete job record so every SPN2 field survives.
+func (j SPNJob) Fields() map[string]any {
+	out := map[string]any{}
+	if len(j.Raw) > 0 {
+		_ = json.Unmarshal(j.Raw, &out)
+	}
+	return out
 }
 
 // SaveAnonymous triggers an anonymous Save Page Now capture (fire and forget).
