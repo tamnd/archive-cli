@@ -1,0 +1,10 @@
+title       = "archive"
+baseURL     = "https://archive-cli.tamnd.com/"
+description = "A fast, friendly command line for the Internet Archive. One binary that searches millions of items, reads metadata, downloads and verifies files, uploads to your own items, reads view counts, and travels through the Wayback Machine."
+contentDir  = "content"
+outputDir   = "public"
+theme       = "tago-doks"
+syntaxHighlight = "true"
+
+[params]
+github = "https://github.com/tamnd/archive-cli"
