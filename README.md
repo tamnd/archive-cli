@@ -1,98 +1,115 @@
 # archive
 
-A fast, friendly command line for the [Internet Archive](https://archive.org).
-One binary that searches millions of items, reads metadata, downloads and
-verifies files, uploads to your own items, reads view counts, and travels
-through the Wayback Machine.
+[![CI](https://github.com/tamnd/archive-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/tamnd/archive-cli/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tamnd/archive-cli)](https://github.com/tamnd/archive-cli/releases/latest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tamnd/archive-cli.svg)](https://pkg.go.dev/github.com/tamnd/archive-cli)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tamnd/archive-cli)](https://goreportcard.com/report/github.com/tamnd/archive-cli)
+[![License](https://img.shields.io/github/license/tamnd/archive-cli)](./LICENSE)
 
-```
-archive item nasa
-```
+A command line for the [Internet Archive](https://archive.org). `archive`
+searches millions of items, reads metadata, downloads and verifies files,
+travels through the Wayback Machine, and uploads to your own items. One
+pure-Go binary, no credentials needed for public data.
 
-```
-field       value
-identifier  nasa
-title       NASA
-mediatype   collection
-files       9
-size        131.1 KB
-server      ia801607.us.archive.org
-details     https://archive.org/details/nasa
-```
+[Install](#install) • [Commands](#commands) • [Usage](#usage) • [Credentials](#credentials)
 
-Full documentation: [archive-cli.tamnd.com](https://archive-cli.tamnd.com).
+![archive searching the Internet Archive and querying the Wayback Machine](docs/static/demo.gif)
 
-## Why
+It talks to the public Internet Archive APIs over HTTPS: the Metadata API, the
+Advanced Search (Solr) endpoint, the CDX Wayback server, and the S3-like IAS3
+upload interface. Every request is paced, retried on transient failures, and
+cached on disk. No login is needed for anything read-only.
 
-Working with the Internet Archive usually means juggling the Metadata API, the
-Solr search endpoint, S3-style upload headers, and the Wayback CDX server by
-hand. archive puts all of it behind one tool with sensible defaults, real output
-formats, and pipelines that compose. It talks to the public data on
-`archive.org` over HTTPS, so there is nothing to sign up for; credentials are
-only needed to upload, delete, or read your task queue.
+`archive` is an independent tool. It is not affiliated with or endorsed by the
+Internet Archive.
 
 ## Install
 
-```sh
+```bash
 go install github.com/tamnd/archive-cli/cmd/archive@latest
 ```
 
 Or grab a prebuilt binary, a Linux package (`deb`/`rpm`/`apk`), or a container
-image from the [releases page](https://github.com/tamnd/archive-cli/releases).
-The binary is pure Go with no runtime dependencies.
+image from the [releases](https://github.com/tamnd/archive-cli/releases):
 
-```sh
-brew install tamnd/tap/archive                 # macOS / Linux
-docker run --rm ghcr.io/tamnd/archive search nasa -n 5
+```bash
+brew install tamnd/tap/archive
+docker run --rm ghcr.io/tamnd/archive:latest search 'collection:nasa' -n 5
 ```
 
-Build from source:
+Shell completion is built in: `archive completion bash|zsh|fish|powershell`.
 
-```sh
-git clone https://github.com/tamnd/archive-cli
-cd archive-cli
-make build      # produces ./bin/archive
+## Commands
+
+| Command | Does |
+| --- | --- |
+| `archive search <query>` | search the Solr index; any Lucene query, `--all` for cursor-based export |
+| `archive item <identifier>` | a friendly summary of an item |
+| `archive metadata <identifier> [subpath]` | the raw Metadata API document, or one field |
+| `archive files <identifier>` | files in an item; `--format`, `--glob` to filter |
+| `archive download <identifier> [files...]` | download and md5-verify; `--workers`, `-d` dir |
+| `archive upload <identifier> <file...>` | upload into an item over IAS3; `--meta` |
+| `archive delete <identifier> <file...>` | delete files from an item over IAS3 |
+| `archive views <identifier...>` | view statistics for one or more items |
+| `archive tasks <identifier>` | catalog and derive task history of an item |
+| `archive wayback available <url>` | closest archived snapshot of a URL |
+| `archive wayback list <url>` | capture history from the CDX server |
+| `archive wayback get <url>` | fetch the content of a snapshot; `--text`, `-t` timestamp |
+| `archive wayback save <url>` | trigger a fresh Save Page Now capture |
+| `archive open <identifier\|url>` | open the details or Wayback URL in the browser |
+| `archive configure` | store IAS3 credentials |
+| `archive whoami` | show configured credentials |
+| `archive config` | show resolved configuration and data paths |
+| `archive cache path\|info\|clear` | inspect or clear the on-disk cache |
+| `archive version` | print version information |
+
+Full reference and guides live at [archive-cli.tamnd.com](https://archive-cli.tamnd.com).
+
+## Usage
+
+```bash
+archive search 'collection:nasa' -n 10              # find items
+archive item nasa                                   # item summary
+archive metadata nasa metadata/title                # one metadata field
+archive files nasa --format JPEG -o url             # file listing as URLs
+archive download nasa --format JPEG -d .            # download and verify
+archive views nasa                                  # view statistics
+archive wayback get https://example.com -t 2010     # a page as it was in 2010
 ```
 
-## Quick start
+Records come out as a table (the default on a terminal), JSON, JSONL, CSV, TSV,
+url, or raw:
 
-```sh
-archive search 'collection:nasa' -n 5      # find items
-archive item nasa                          # what an item is, at a glance
-archive metadata nasa metadata/title        # a single metadata field
-archive files nasa --format JPEG -o url     # a file listing, as URLs
-archive download nasa --format JPEG -d .     # download and verify by md5
-archive views nasa                          # view counts
-archive wayback get example.com -t 2010 --text  # a page as it was in 2010
-```
-
-## What you can do with it
-
-- **Search.** Query the Advanced Search (Solr) index with any Lucene query,
-  sort and project fields, and render the result as a table, JSONL, CSV, or just
-  identifiers. Large sets export through the cursor-based Scraping API with
-  `--all`.
-- **Inspect items.** Read the raw Metadata API document, a friendly summary, or
-  a single field, and list files filtered by glob or format.
-- **Download and verify.** Pull whole items or selected files concurrently,
-  resume partial downloads with HTTP range requests, and verify each file
-  against its md5.
-- **Upload and manage.** Push files into your own items over the S3-like IAS3
-  interface with metadata headers, and delete files.
-- **Travel the Wayback Machine.** Find the closest snapshot of a URL, list its
-  capture history from the CDX server, fetch a snapshot as text, links, or raw
-  bytes, and trigger a fresh capture with Save Page Now.
-
-## Output formats
-
-Every command renders through one output layer. Pick with `-o`: `table`, `json`,
-`jsonl`, `csv`, `tsv`, `url`, or `raw`. `auto` (the default) is a table on a
-terminal and JSONL in a pipe. `--fields` projects columns; `--template` applies
-a Go template per row.
-
-```sh
+```bash
+archive search 'collection:nasa' --fields identifier,title,downloads -o table
 archive search 'collection:nasa' --fields identifier,downloads -o csv
 archive search 'collection:nasa' --fields identifier -o raw | xargs -n1 archive item
+archive files nasa --format JPEG -o url | head -20
+archive wayback list https://archive.org -n 50 -o jsonl | jq .timestamp
+```
+
+Export a large result set with the cursor-based Scraping API:
+
+```bash
+archive search 'subject:jazz mediatype:audio' --all --fields identifier,title -o jsonl > jazz.jsonl
+```
+
+### Global flags
+
+```
+-o, --output    table|json|jsonl|csv|tsv|url|raw   (auto: table on a TTY, jsonl when piped)
+    --fields    comma-separated columns to include
+    --no-header omit the header row in table/csv/tsv
+    --template  Go text/template applied per record
+-n, --limit     max records (0 = unlimited)
+-q, --quiet     suppress progress output
+    --color     auto|always|never
+    --rate      min spacing between requests (default 250ms)
+    --timeout   per-request timeout (default 2m)
+    --retries   retry attempts on 429/5xx (default 5)
+-j, --workers   concurrency for downloads (default 8)
+    --no-cache  bypass the on-disk cache
+    --dry-run   print actions without performing them
 ```
 
 ## Credentials
@@ -101,34 +118,57 @@ Reading public data needs no account. To upload, delete, or read a private task
 queue, get an IAS3 key pair from
 [archive.org/account/s3.php](https://archive.org/account/s3.php) and store it:
 
-```sh
-archive configure                 # prompts, writes ~/.config/archive/credentials (0600)
-archive whoami                    # show what is configured
+```bash
+archive configure    # prompts for access and secret keys, writes ~/.config/archive/credentials
+archive whoami       # verify what is configured
 ```
 
-Credentials resolve from `--access`/`--secret`, then `ARCHIVE_ACCESS_KEY` /
-`ARCHIVE_SECRET_KEY` (or `IA_*`), then the credentials file.
+Credentials resolve in order: `--access`/`--secret` flags, then
+`ARCHIVE_ACCESS_KEY`/`ARCHIVE_SECRET_KEY` environment variables (or `IA_*`
+aliases), then the credentials file.
 
 ## Exit codes
 
-`0` success, `1` generic error, `2` usage error, `3` no results, `4`
-authentication required/failed, `5` not found.
+```
+0  success
+1  error
+2  usage error
+3  no results
+4  authentication required or failed
+5  not found
+```
 
 ## Development
 
-```sh
-make build      # build ./bin/archive
-make test       # go test ./...
-make vet        # go vet ./...
-make fmt        # gofmt -w -s .
+```
+cmd/archive/    thin main entry point
+cli/            cobra commands and output rendering
+ia/             HTTP client, API calls, and models
+docs/           documentation site (Hugo, tago-doks theme)
 ```
 
-CI runs build, test (with the race detector) on Linux and macOS, gofmt, vet,
-golangci-lint, govulncheck, and a go.mod tidiness check. Releases are cut by
-pushing a `vX.Y.Z` tag, which GoReleaser turns into archives, Linux packages, a
-multi-arch GHCR image, checksums, an SBOM, a cosign signature, and Homebrew and
-Scoop entries.
+```bash
+make build   # ./bin/archive
+make test    # go test ./...
+make vet     # go vet ./...
+make fmt     # gofmt -w -s .
+```
+
+Requires Go 1.23+.
+
+## Releasing
+
+Push a version tag and GitHub Actions runs GoReleaser, which builds archives,
+Linux packages, a multi-arch GHCR image, checksums, an SBOM, a cosign
+signature, and Homebrew and Scoop entries:
+
+```bash
+git tag -a v0.2.0 -m "v0.2.0"
+git push --tags
+```
+
+The image tag carries no `v` prefix (`ghcr.io/tamnd/archive:0.2.0`).
 
 ## License
 
-[Apache-2.0](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
